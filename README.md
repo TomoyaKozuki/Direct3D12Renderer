@@ -23,6 +23,16 @@ It demonstrates physically based rendering techniques on modern graphics hardwar
 - Assimp (v5.2.5)
 - DirectXTK12 (oct2025)
 
+## Pre-build Configuration
+Before running CMake, you must configure the path to the Shader Compiler DLLs (`dxcompiler.dll` and `dxil.dll`) which are required for DXR shader signing.
+
+1. Open `./Sample/CMakeLists.txt`.
+2. Locate the `DXC_DLL_PATH` variable.
+3. Update the path to match your Windows SDK or Visual Studio installation.
+
+```cmake
+# Example: Windows 11 SDK
+set(DXC_DLL_PATH "C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64")
 
 ## Cloning & Building
 This code is primarily tested with Windows 11 and Visual Studio 2022.  
