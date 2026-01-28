@@ -26,7 +26,7 @@ It demonstrates physically based rendering techniques on modern graphics hardwar
 ## Pre-build Configuration
 Before running CMake, you must configure the path to the Shader Compiler DLLs (`dxcompiler.dll` and `dxil.dll`) which are required for DXR shader signing.
 
-1. Open `./Sample/CMakeLists.txt`.
+1. Open [./Sample/CMakeLists.txt](./Sample/CMakeLists.txt).
 2. Locate the `DXC_DLL_PATH` variable.
 3. Update the path to match your Windows SDK or Visual Studio installation.
 
