@@ -33,7 +33,7 @@ Before running CMake, you must configure the path to the Shader Compiler DLLs (`
 ```cmake
 # Example: Windows 11 SDK
 set(DXC_DLL_PATH "C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64")
-
+```
 ## Cloning & Building
 This code is primarily tested with Windows 11 and Visual Studio 2022.  
 To clone this repo, run the following (note the --recursive flag):
