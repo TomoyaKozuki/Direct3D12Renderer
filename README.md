@@ -52,6 +52,7 @@ mkdir build
 cd build
 cmake ..
 ```
+After generating the project, open build/Direct3D12_GGX_Renderer.sln in Visual Studio and run the Direct3D12Renderer project.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
