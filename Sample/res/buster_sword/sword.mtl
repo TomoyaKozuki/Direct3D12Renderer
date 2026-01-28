@@ -1,0 +1,9 @@
+newmtl lambert2SG
+Ka 0.60000 0.60000 0.60000
+Kd 0.80000 0.80000 0.80000
+Ks 0.80000 0.80000 0.80000
+Ns 50.00000
+map_Kd basecolor.dds
+map_Bump normal.dds
+map_Pr roughness.dds
+map_Pm metallic.dds

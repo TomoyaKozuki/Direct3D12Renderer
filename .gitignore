@@ -1,0 +1,29 @@
+# VS キャッシュ
+.vs/
+
+# ビルド結果
+Debug/
+Release/
+x64/
+x86/
+out/
+build/
+
+# 中間ファイル
+# *.obj
+*.pdb
+*.ilk
+*.idb
+
+# 一時ファイル
+*.log
+*.tmp
+*.cache
+*.user
+
+# トレース
+*.tlog
+
+# データベース
+*.db
+*.opendb

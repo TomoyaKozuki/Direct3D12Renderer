@@ -1,0 +1,9 @@
+[submodule "Framework/extern/imgui"]
+	path = Framework/extern/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "Framework/extern/assimp"]
+	path = Framework/extern/assimp
+	url = https://github.com/assimp/assimp.git
+[submodule "Framework/extern/DirectXTK12"]
+	path = Framework/extern/DirectXTK12
+	url = https://github.com/microsoft/DirectXTK12.git
