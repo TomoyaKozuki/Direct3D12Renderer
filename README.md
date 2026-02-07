@@ -1,6 +1,6 @@
 ﻿# A DirectX 12 renderer featuring a GGX microfacet BRDF.
 This project implements a GGX (Trowbridge-Reitz) microfacet BRDF using DirectX 12.
-It demonstrates physically based rendering techniques on modern graphics hardware.
+It demonstrates physically based rendering techniques on modern graphics hardware.（In Progress: DXR Ray Tracing integration）
 
 ## Features
 - GGX (Trowbridge-Reitz) microfacet BRDF implementation
