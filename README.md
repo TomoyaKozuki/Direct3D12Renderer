@@ -25,8 +25,8 @@ $$f(l, v) = \frac{D(h)F(v, h)G(l, v, h)}{4(n \cdot l)(n \cdot v)}$$
 
 ### DXR (DirectX Ray Tracing) Integration
 I am currently transitioning the project from a pure rasterization pipeline to a hybrid/ray-traced approach using DXR 1.1:
-- [x] **PBR Implementation**: Base logic for GGX.
 - [x] **Acceleration Structures**: Building BLAS (Bottom Level) and TLAS (Top Level).
+- [ ] **PBR Implementation**: Base logic for GGX.
 - [ ] **Path Tracing**: Implementing importance sampling.
       
 ## Environment
