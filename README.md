@@ -12,7 +12,6 @@ In addition to constant material parameters, the renderer now supports full text
 * **Albedo (Base Color) Map**: Defines the raw surface color.
 * **Normal Map**: High-frequency surface detail using Tangent Space normals.
 * **Metallic / Roughness Map**: Pixel-level control of the GGX specular response.
-* **Ambient Occlusion Map**: Surface-level shadowing for enhanced depth.
 
 ### 2. GGX Microfacet BRDF
 A physically based shading model implemented in HLSL, ensuring realistic light interaction:
@@ -21,15 +20,16 @@ A physically based shading model implemented in HLSL, ensuring realistic light i
 * **F (Fresnel)**: Schlick's Approximation for view-dependent reflectivity.
 
 $$f(l, v) = \frac{D(h)F(v, h)G(l, v, h)}{4(n \cdot l)(n \cdot v)}$$
----
+
 ## 🚧 Roadmap (In Progress)
 
 ### DXR (DirectX Ray Tracing) Integration
 I am currently transitioning the project from a pure rasterization pipeline to a hybrid/ray-traced approach using DXR 1.1:
-* [ ] **Acceleration Structures**: Building BLAS (Bottom Level) and TLAS (Top Level) for complex mesh hierarchies.
-* [ ] **Path Tracing**: Implementing importance sampling based on the GGX BRDF.
-* [ ] **Shader Binding Table (SBT)**: Managing Ray Generation, Miss, and Closest Hit shaders.
-* [ ] **Hybrid Rendering**: Combining rasterized G-buffers with ray-traced reflections and shadows.
+- **Acceleration Structures**: Building BLAS (Bottom Level) and TLAS (Top Level) for complex mesh hierarchies.
+- **Path Tracing**: Implementing importance sampling based on the GGX BRDF.
+- **Shader Binding Table (SBT)**: Managing Ray Generation, Miss, and Closest Hit shaders.
+- **Hybrid Rendering**: Combining rasterized G-buffers with ray-traced reflections and shadows.
+      
 ## Environment
 - **OS**: Windows 11 (64-bit)
 - **API**: DirectX 12
