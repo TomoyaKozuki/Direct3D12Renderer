@@ -5,7 +5,22 @@ It demonstrates physically based rendering techniques on modern graphics hardwar
 ## Features
 - GGX (Trowbridge-Reitz) microfacet BRDF implementation
 - Physically based rendering using DirectX 12
+## 🛠 Current Progress & Features
 
+### 1. PBR Texture Mapping Implementation
+In addition to constant material parameters, the renderer now supports full texture-based PBR workflows. This allows for high-fidelity surface detail using maps loaded via Assimp:
+* **Albedo (Base Color) Map**: Defines the raw surface color.
+* **Normal Map**: High-frequency surface detail using Tangent Space normals.
+* **Metallic / Roughness Map**: Pixel-level control of the GGX specular response.
+* **Ambient Occlusion Map**: Surface-level shadowing for enhanced depth.
+
+### 2. GGX Microfacet BRDF
+A physically based shading model implemented in HLSL, ensuring realistic light interaction:
+* **D (NDF)**: Trowbridge-Reitz GGX for specular distribution.
+* **G (Geometry)**: Smith Joint GGX for shadowing and masking.
+* **F (Fresnel)**: Schlick's Approximation for view-dependent reflectivity.
+
+$$f(l, v) = \frac{D(h)F(v, h)G(l, v, h)}{4(n \cdot l)(n \cdot v)}$$
 ## Environment
 - **OS**: Windows 11 (64-bit)
 - **API**: DirectX 12
