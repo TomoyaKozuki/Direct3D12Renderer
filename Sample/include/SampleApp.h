@@ -61,6 +61,7 @@ public:
     float                           m_zoomscale = 10.0f;
     float                           m_movescale = 10.0f;
     float                           m_LightIntensity = 0.3f;
+    float                           m_fovY_degrees = 37.5;
 
 private:
     //=========================================================================
@@ -232,6 +233,8 @@ private:
     ComPtr<ID3D12RootSignature> CreateRayGenSignature();
     ComPtr<ID3D12RootSignature> CreateMissSignature();
     ComPtr<ID3D12RootSignature> CreateHitSignature();
+    ComPtr<ID3D12RootSignature> CreateHitSignature_();
+
 
     void CreateRaytracingPipeline();
 

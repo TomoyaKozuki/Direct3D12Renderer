@@ -26,22 +26,42 @@ struct ShadowHitInfo
 
 // #DXR Extra - Another ray type
 // Raytracing acceleration structure, accessed as a SRV
-RaytracingAccelerationStructure SceneBVH : register(t2);
+//RaytracingAccelerationStructure SceneBVH : register(t2);
 
-struct STriVertex {
-  float3 vertex;
-  float4 color;
+//RayGenと同じ構成にして、SBTとの結びつけで同じheapをつかえるようにする。（u0とb0はダミー）
+// Raytracing output texture, accessed as a UAV
+//RWTexture2D<float4> gOutput : register(u0);
+
+//// Raytracing acceleration structure, accessed as a SRV
+RaytracingAccelerationStructure SceneBVH : register(t0);
+
+//// #DXR Extra: Perspective Camera
+//cbuffer CameraParams : register(b0)
+//{
+//    float4x4 world; //追加
+//    float4x4 view;
+//    float4x4 projection;
+//    float4x4 viewI;
+//    float4x4 projectionI;
+    
+//}
+
+struct STriVertex
+{
+    float3 vertex;
+    float4 color;
 };
 
 // #DXR Extra: Per-Instance Data
-cbuffer Colors : register(b0) {
-  float3 A;
-  float3 B;
-  float3 C;
-}
+//cbuffer Colors : register(b0)
+//{
+//    float3 A;
+//    float3 B;
+//    float3 C;
+//}
 
-StructuredBuffer<STriVertex> BTriVertex : register(t0);
-StructuredBuffer<int> indices : register(t1);
+//StructuredBuffer<STriVertex> BTriVertex : register(t0);
+//StructuredBuffer<int> indices : register(t1);
 
 [shader("closesthit")]void ClosestHit(inout HitInfo payload,
                                        Attributes attrib)
@@ -53,14 +73,14 @@ StructuredBuffer<int> indices : register(t1);
   // #DXR Extra: Per-Instance Data
     float3 hitColor = float3(0.6, 0.7, 0.6);
   // Shade only the first 3 instances (triangles)
-    if (InstanceID() < 3)
-    {
+    //if (InstanceID() < 3)
+    //{
 
-    // #DXR Extra: Per-Instance Data
-        hitColor = BTriVertex[indices[vertId + 0]].color * barycentrics.x +
-               BTriVertex[indices[vertId + 1]].color * barycentrics.y +
-               BTriVertex[indices[vertId + 2]].color * barycentrics.z;
-    }
+    // // #DXR Extra: Per-Instance Data
+    //    hitColor = BTriVertex[indices[vertId + 0]].color * barycentrics.x +
+    //            BTriVertex[indices[vertId + 1]].color * barycentrics.y +
+    //            BTriVertex[indices[vertId + 2]].color * barycentrics.z;
+    //}
 
     payload.colorAndDistance = float4(hitColor, RayTCurrent());
 }
@@ -107,7 +127,7 @@ StructuredBuffer<int> indices : register(t1);
       // indicates which offset (on 4 bits) to apply to the hit groups for this
       // ray. In this sample we only have one hit group per object, hence an
       // offset of 0.
-      1u,
+      1u,//1u,
       // The offsets in the SBT can be computed from the object ID, its instance
       // ID, but also simply by the order the objects have been pushed in the
       // acceleration structure. This allows the application to group shaders in
@@ -132,6 +152,6 @@ StructuredBuffer<int> indices : register(t1);
 
     float3 barycentrics =
       float3(1.f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
-    float4 hitColor = float4(float3(0.7, 0.7, 0.3) * factor, RayTCurrent());
+    float4 hitColor = float4(float3(0.7, 0.7, 0.7) * factor, RayTCurrent());
     payload.colorAndDistance = float4(hitColor);
 }

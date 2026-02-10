@@ -46,7 +46,7 @@ bool Mesh::Init(ID3D12Device* pDevice, const ResMesh& resource)
 
     m_MaterialId = resource.MaterialId;
     m_IndexCount = uint32_t(resource.Indices.size());
-
+    m_VertexCount = uint32_t(resource.Vertices.size());
     return true;
 }
 
@@ -59,6 +59,7 @@ void Mesh::Term()
     m_IB.Term();
     m_MaterialId = UINT32_MAX;
     m_IndexCount = 0;
+    m_VertexCount = 0;
 }
 
 //-----------------------------------------------------------------------------

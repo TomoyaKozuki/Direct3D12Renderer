@@ -71,6 +71,8 @@ public:
     //-------------------------------------------------------------------------
     void Sync(ID3D12CommandQueue* pQueue);
 
+    void Sync_(ID3D12CommandQueue* pQueue);
+
     UINT GetFenceCounter() const {
         return m_Counter;
     }

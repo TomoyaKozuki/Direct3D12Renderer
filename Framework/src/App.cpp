@@ -38,7 +38,7 @@ App::App(uint32_t width, uint32_t height)
 , m_Width           (width)
 , m_Height          (height)
 , m_FrameIndex      (0)
-, m_RenderType      (RENDER_TYPE::RASTERIZE)
+, m_RenderType      (RENDER_TYPE::RAYTRACE)
 //, m_WindowEvent     (m_hWnd)
 { /* DO_NOTHING */
     m_aspectRatio = static_cast<float>(width) / static_cast<float>(height);

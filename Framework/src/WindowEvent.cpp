@@ -34,23 +34,23 @@ void WindowEvent::UpdateState() {
 	GetCursorPos(&p);
 	ScreenToClient(m_hwnd, &p);
 
-	std:: cout << "prev = (" << m_CursorState.prev.x << ", " << m_CursorState.prev.y << ")"
-		<< "curr = (" << m_CursorState.curr.x << ", " << m_CursorState.curr.y << ")" << std::endl << std::endl;
+	/*std:: cout << "prev = (" << m_CursorState.prev.x << ", " << m_CursorState.prev.y << ")"
+		<< "curr = (" << m_CursorState.curr.x << ", " << m_CursorState.curr.y << ")" << std::endl << std::endl;*/
 
 	m_CursorState.prev = m_CursorState.curr;
 	m_CursorState.curr = { p.x,p.y };
 	ComputeCursorMove();
 
-	std::cout << "UpdateState" << std::endl << std::endl;
+	/*std::cout << "UpdateState" << std::endl << std::endl;
 
 	std::cout << "prev = (" << m_CursorState.prev.x << ", " << m_CursorState.prev.y << ")"
-		<< "curr = (" << m_CursorState.curr.x << ", " << m_CursorState.curr.y << ")" << std::endl << std::endl;
+		<< "curr = (" << m_CursorState.curr.x << ", " << m_CursorState.curr.y << ")" << std::endl << std::endl;*/
 	//std::cout << "(" << m_CursorMove.x << ", " << m_CursorMove.y << ")" << std::endl << std::endl;
 	RECT rc{};
-	if (!GetClientRect(m_hwnd, &rc)) {
+	/*if (!GetClientRect(m_hwnd, &rc)) {
 		std::cout << "GetClientRect failed. hwnd = " << m_hwnd << std::endl;
 	}
 	else {
 		std::cout << "Client size = " << rc.right << " x " << rc.bottom << std::endl;
-	}
+	}*/
 }

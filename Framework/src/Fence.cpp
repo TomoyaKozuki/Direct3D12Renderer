@@ -133,3 +133,40 @@ void Fence::Sync(ID3D12CommandQueue* pQueue)
     // カウンターを増やす.
     m_Counter++;
 }
+
+//-----------------------------------------------------------------------------
+//      シグナル状態になるまでずっと待機します.
+//-----------------------------------------------------------------------------
+void Fence::Sync_(ID3D12CommandQueue* pQueue)
+{
+
+    if (pQueue == nullptr)
+    {
+        return;
+    }
+    // カウンターを増やす.
+    m_Counter++;
+
+    // シグナル処理.
+    auto hr = pQueue->Signal(m_pFence.Get(), m_Counter);
+    if (FAILED(hr))
+    {
+        return;
+    }
+
+    // 完了時にイベントを設定.
+    hr = m_pFence->SetEventOnCompletion(m_Counter, m_Event);
+    if (FAILED(hr))
+    {
+        return;
+    }
+
+    // 待機処理.
+    if (WAIT_OBJECT_0 != WaitForSingleObjectEx(m_Event, INFINITE, FALSE))
+    {
+        return;
+    }
+
+    // カウンターを増やす.
+    m_Counter++;
+}

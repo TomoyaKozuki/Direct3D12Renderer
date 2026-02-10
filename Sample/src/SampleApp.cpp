@@ -52,6 +52,7 @@ struct Transform
     Matrix   Proj;       //!< 射影行列です.
     Matrix   InvView;    //!< ビュー行列の逆行列です.
     Matrix   InvProj;    //!< 射影行列の逆行列です.
+    Vector4  CameraPos;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -126,14 +127,14 @@ bool SampleApp::OnDXRInit() {
     CheckRaytracingSupport();
     std::cout << "CheckRaytracingSupport " << std::endl;
 
-    m_CommandList.Reset();//しまっていたので、追加した。
+    //m_CommandList.Reset();//しまっていたので、追加した。そしてCreateAccelerationStructures();にm_CommandList.Reset()を以降
     //レイトレーシングの加速構造ASを構築。構築時には、加速構造を作るときにはBLASに固有のTransform行列を持つ
     CreateAccelerationStructures();
     std::cout << "CreateAccelerationStructures" << std::endl;
     //コマンドリストは生成直後は「記録中」であるが、まだ何も記録しないので「close状態」にしておく
     //ThrowIfFailed(m_CommandList.GetCommandList()->Close());
     //シェーダコード ↔ シンボル名の対応 シンボル名 ↔ ルートシグニチャの対応 レイが運ぶデータ量（Ray Payload）
-
+    auto pCmd = m_CommandList.Reset();
     // CreateAccelerationStructuresでコマンドを記録して、いったん閉じて、CreateRaytracingPipelineに進むのはなぜ？
     //理由は「AS（Acceleration Structure：加速構造体）の構築コマンドをGPUに確実に実行させて完了させてから、
     // レイトレーシングパイプライン（CreateRaytracingPipeline）の初期化に進む必要がある」ためです。
@@ -168,10 +169,12 @@ bool SampleApp::OnDXRInit() {
 
     // --- ここを追加 ---
     // 1. ノートを閉じる
-    m_CommandList.GetCommandList()->Close();
+    //m_CommandList.GetCommandList()->Close();
     
     // 2. 溜まったコマンド（SBTの構築やコピーなど）をGPUに送る
-    ID3D12CommandList* ppCommandLists[] = { m_CommandList.GetCommandList() };
+    //ID3D12CommandList* ppCommandLists[] = { m_CommandList.GetCommandList() };
+    pCmd->Close();
+    ID3D12CommandList* ppCommandLists[] = { pCmd };
     m_pQueue->ExecuteCommandLists(1, ppCommandLists);
     
     // 3. 初期化コマンドがすべて終わるのを待つ（これ重要！）
@@ -502,22 +505,26 @@ bool SampleApp::OnInit()
             m_upward = Vector3(0.0f, 1.0f, 0.0f); 
 
             // 垂直画角とアスペクト比の設定.
-            auto fovY   = DirectX::XMConvertToRadians( 37.5f );
+            auto fovY   = DirectX::XMConvertToRadians(m_fovY_degrees);
             auto aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
             // 変換行列を設定.
             auto ptr = pCB->GetPtr<Transform>();
             ptr->World = Matrix::Identity;
-            //ptr->World = Matrix::CreateRotationY(0.3f);
             ptr->View  = Matrix::CreateLookAt( m_eyePos, m_targetPos, m_upward );
             ptr->Proj  = Matrix::CreatePerspectiveFieldOfView( fovY, aspect, 1.0f, 1000.0f );
             ptr->InvView = ptr->View;
             ptr->InvView.Invert();
             ptr->InvProj = ptr->Proj;
             ptr->InvProj.Invert();
+            ptr->CameraPos = Vector4(m_eyePos.x, m_eyePos.y, m_eyePos.z, 1.0f);
 
+            /*ptr->World = ptr->World.Transpose();
+            ptr->View = ptr->View.Transpose();
+            ptr->Proj = ptr->Proj.Transpose();
             ptr->InvView = ptr->InvView.Transpose();
-            ptr->InvProj = ptr->InvProj.Transpose();
+            ptr->InvProj = ptr->InvProj.Transpose();*/
+
 
             m_Transform.push_back(pCB);
         }
@@ -575,6 +582,7 @@ void SampleApp::OnRender()
         float deltaPitch = 0.0f;
         float sensitivity = 10.0f;
         float aspect = static_cast<float>(m_Width) / static_cast<float>(m_Height);
+        
 
         m_front = m_targetPos - m_eyePos;
         m_front.Normalize();
@@ -614,8 +622,17 @@ void SampleApp::OnRender()
         if (m_MoveBackward) m_CameraMove = m_CameraMove - m_upward;
         if (m_MoveLeft)     m_CameraMove = m_CameraMove + m_right;
         if (m_MoveRight)    m_CameraMove = m_CameraMove - m_right;
-        if (m_Wheel > 0)    m_CameraMove = m_CameraMove + m_front;
-        if (m_Wheel < 0)    m_CameraMove = m_CameraMove - m_front;
+        //if (m_Wheel > 0)    m_CameraMove = m_CameraMove + m_front;
+        //if (m_Wheel < 0)    m_CameraMove = m_fovY_degrees + m_zoomscale * 0.1f;/*m_CameraMove - m_front;*/
+        if (m_RenderType == RENDER_TYPE::RASTERIZE) {
+            if (m_Wheel > 0)    m_fovY_degrees -= m_zoomscale * 0.1f;
+            if (m_Wheel < 0)    m_fovY_degrees += m_zoomscale * 0.1f;
+        }
+        else if(m_RenderType == RENDER_TYPE::RAYTRACE){
+            if (m_Wheel > 0)    m_fovY_degrees -= m_zoomscale * 0.1f;
+            if (m_Wheel < 0)    m_fovY_degrees += m_zoomscale * 0.1f;
+        }
+        auto fovY = DirectX::XMConvertToRadians(m_fovY_degrees);
         // カメラの移動量が0でなければ、正規化してスケーリングし、カメラ位置とターゲット位置を更新
         if (m_CameraMove != Vector3::Zero)
         {
@@ -631,24 +648,24 @@ void SampleApp::OnRender()
         }
         m_Wheel = 0;
 
+        
         //カメラの情報の更新
         auto pTransform = m_Transform[m_FrameIndex]->GetPtr<Transform>();
         pTransform->World = Matrix::CreateRotationY(m_RotateAngle);
         pTransform->View = Matrix::CreateLookAt(m_eyePos, m_targetPos, m_upward);
-
         pTransform->InvView = pTransform->View;
         pTransform->InvView.Invert();
-
-        pTransform->InvView = pTransform->InvView.Transpose();
-        pTransform->InvProj = pTransform->InvProj.Transpose();
+        pTransform->Proj = Matrix::CreatePerspectiveFieldOfView(fovY, aspect, 1.0f, 1000.0f);
+        pTransform->InvProj = pTransform->Proj;
+        pTransform->InvProj.Invert();
+        pTransform->CameraPos = Vector4(m_eyePos.x, m_eyePos.y, m_eyePos.z, 1.0f);
 
         //ライトバッファの更新
         auto pLight = m_pLight->GetPtr<LightBuffer>();
-        pLight->LightPosition = Vector4(0.0f, -100.0f, 1500.0f, 0.0);//Vector4(m_eyePos.x, m_eyePos.y, m_eyePos.z, 0.0f);
+        pLight->LightPosition = Vector4(0.0f, -100.0f, 1500.0f, 0.0);
         pLight->LightColor = Color(1.0f, 1.0f, 1.0f, m_LightIntensity);
         pLight->CameraPosition = Vector4(m_eyePos.x, m_eyePos.y, m_eyePos.z, 0.0f);
-
-        m_cameraBuffer = m_Transform[m_FrameIndex]->GetConstantBuffer();
+        
     }
     //##########################################################
     //　　　GUIの処理の開始
@@ -708,6 +725,7 @@ void SampleApp::OnRender()
     switch(m_RenderType){
 
         case RENDER_TYPE::RASTERIZE:
+            
             // レンダーターゲットをクリア.
             pCmd->ClearRenderTargetView(handleRTV->HandleCPU, clearColor.data(), 0, nullptr);
             // 深度ステンシルビューをクリア.
@@ -741,18 +759,59 @@ void SampleApp::OnRender()
 
                     // メッシュを描画.
                     m_pMesh[i]->Draw(pCmd);
+                    
+                    
                 }
 
             }
             break;
 
         case RENDER_TYPE::RAYTRACE:
+
+            auto pTransform = m_Transform[m_FrameIndex]->GetPtr<Transform>();
+
+            // 送信用の一時的な構造体を作る
+            Transform gpuData = *pTransform;
+
+            // 送る直前に、GPUが好む形式（転置）に変換する
+            gpuData.World = gpuData.World.Transpose();
+            gpuData.View = gpuData.View.Transpose();
+            gpuData.Proj = gpuData.Proj.Transpose();
+            gpuData.InvView = gpuData.InvView.Transpose();
+            gpuData.InvProj = gpuData.InvProj.Transpose();
+            //CameraPosは転置させない（行列ではないため）
+            void* pMappedData = nullptr;
+            if (SUCCEEDED(m_cameraBuffer->Map(0, nullptr, &pMappedData))) {
+                // 転置済みのデータをコピー
+                memcpy(pMappedData, &gpuData, sizeof(Transform));
+                m_cameraBuffer->Unmap(0, nullptr);
+            }
+
+            //pTransform->World = pTransform->World.Transpose();
+            //pTransform->View = pTransform->View.Transpose();
+            //pTransform->Proj = pTransform->Proj.Transpose();
+            //pTransform->InvView = pTransform->InvView.Transpose();
+            //pTransform->InvProj = pTransform->InvProj.Transpose();
+            ////m_cameraBuffer = m_Transform[m_FrameIndex]->GetConstantBuffer();
+            //// 2. m_cameraBuffer（GPUが覗いている部屋）を開く
+            //void* pMappedData = nullptr;
+            //D3D12_RANGE readRange = { 0, 0 }; // CPUからは読み込まないので0を指定
+            //HRESULT hr = m_cameraBuffer->Map(0, &readRange, &pMappedData);
+
+            //if (SUCCEEDED(hr)) {
+            //    // 3. データを物理的にコピーする（これでGPUに届く）
+            //    memcpy(pMappedData, pTransform, sizeof(Transform));
+
+            //    // 4. 部屋を閉じる（変更を確定させる）
+            //    m_cameraBuffer->Unmap(0, nullptr);
+            //}
+
             CreateTopLevelAS(m_instances, true);
 
             std::vector<ID3D12DescriptorHeap*> heaps = { m_srvUavHeap.Get() };
 
+            //std::cout << "heaps.size() = " << heaps.size() << std::endl;
             pCmd->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
-
             //ヘルパ関数を用いているので、ResourceBarrierも実行している。
             DirectX::TransitionResource(pCmd,
                 m_outputResource.Get(),
@@ -786,6 +845,7 @@ void SampleApp::OnRender()
             desc.Height = m_Height;
             desc.Depth = 1;
 
+     
             // Bind the raytracing pipeline
             pCmd->SetPipelineState1(m_rtStateObject.Get());
             // Dispatch the rays and write to the raytracing output
@@ -1032,7 +1092,18 @@ void SampleApp::CreateTopLevelAS(
         for (size_t i = 0; i < instances.size(); i++) {
             m_topLevelASGenerator.AddInstance(
                 instances[i].first.Get(), instances[i].second, static_cast<UINT>(i),
-                static_cast<UINT>(2 * i));
+                static_cast<UINT>(/*2 * i*/i));
+
+            std::cout << "instances[i].first.Get() = " << instances[i].first.Get() << std::endl;
+            //行列の表示
+            DirectX::XMFLOAT4X4 fMat;
+            DirectX::XMStoreFloat4x4(&fMat, instances[i].second);
+            for (int k = 0; k < 4; k++) {
+                for (int j = 0; j < 4; j++) {
+                    std::cout << fMat.m[k][j] << "\t";
+                }
+                std::cout << std::endl;
+            }
         }
 
         /*Bottom - Level AS の構築には、実際の AS（結果）に加えて、一時データを保存するためのスクラッチ領域が必要になります。
@@ -1057,13 +1128,9 @@ void SampleApp::CreateTopLevelAS(
         m_topLevelASBuffers.pInstanceDesc = nv_helpers_dx12::CreateBuffer(
             m_pDevice.Get(), instanceDescsSize, D3D12_RESOURCE_FLAG_NONE,
             D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
-
-        if (!m_topLevelASBuffers.pInstanceDesc) {
-            // エラー出力
-            std::cout << "pInstanceDesc is nullptr!" << std::endl;
-        }
     }
 
+    
     m_topLevelASGenerator.Generate(m_CommandList.GetCommandList(),
         m_topLevelASBuffers.pScratch.Get(),
         m_topLevelASBuffers.pResult.Get(),
@@ -1073,44 +1140,42 @@ void SampleApp::CreateTopLevelAS(
 }
 
 //-----------------------------------------------------------------------------
-//
 // Combine the BLAS and TLAS builds to construct the entire acceleration
 // structure required to raytrace the scene
-//
-
-//###############################################
-//　いくつか修正が必要だ
-//###############################################
 
 void SampleApp::CreateAccelerationStructures() {
-    //自分が描画するメッシュだけ記述する。
     //AccelerationStructureBuffers bottomLevelBuffers = CreateBottomLevelAS(
-    //    { {m_vertexBuffer.Get(), 4} }, { {m_indexBuffer.Get(),12} });//std::vector<std::pair~>>なので
-
+    //    { {m_vertexBuffer.Get(), 4} }, { {m_indexBuffer.Get(),12} });
+    auto pCmd = m_CommandList.Reset();
+    
     AccelerationStructureBuffers planeBottomLevelBuffers =
         CreateBottomLevelAS({ {m_planeBuffer.Get(), 6} });
 
+    /*AccelerationStructureBuffers RenderMeshBuffers = CreateBottomLevelAS(
+        { {m_pMesh[0]->GetVertexBuffer().Get(), m_pMesh[0]->GetVertexCount()}}
+        ,{{m_pMesh[0]->GetIndexBuffer().Get(),m_pMesh[0]->GetIndexCount()}});*///それぞれ、ID3D12Resource*（ComPtr<ID3D12Resource>）　型とuint32_t型である
+    
+    std::cout << "m_pMesh[0]->GetVertexCount() : " << m_pMesh[0]->GetVertexCount() << std::endl;
+    std::cout << "m_pMesh[0]->GetIndexCount() : " << m_pMesh[0]->GetIndexCount() << std::endl;
+    
+    //m_pMesh[0]->GetVertexCount() : 63168
+    //m_pMesh[0]->GetIndexCount() : 93744 という描画結果になった
+
+
+    if (m_planeBuffer.Get() && planeBottomLevelBuffers.pResult) {
+        std::cout << "m_planeBufferはNULLではない" << std::endl;
+    }
     m_instances = {
-        {planeBottomLevelBuffers.pResult, DirectX::XMMatrixTranslation(0, 0, 2.0f)}
+        {planeBottomLevelBuffers.pResult, DirectX::XMMatrixTranslation(0, 0, 0)}
+        //{RenderMeshBuffers.pResult, DirectX::XMMatrixTranslation(0, 0, 0)}
     };
 
-    CreateTopLevelAS(m_instances,false);
+    CreateTopLevelAS(m_instances);
 
-    m_CommandList.GetCommandList()->Close();
-    ID3D12CommandList* ppCommandLists[] = { m_CommandList.GetCommandList() };
+    pCmd->Close();
+    ID3D12CommandList* ppCommandLists[] = { pCmd };
     m_pQueue->ExecuteCommandLists(1, ppCommandLists);
-    m_Fence.AddFenceCounter();
-    m_pQueue->Signal(m_Fence.GetFence(), m_Fence.GetFenceCounter());
-
-    m_Fence.GetFence()->SetEventOnCompletion(m_Fence.GetFenceCounter(), m_Fence.GetFenceEvent());
-    WaitForSingleObject(m_Fence.GetFenceEvent(), INFINITE);
-
-
-
-    //ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()));
-    m_CommandList.Reset();
-
-    /*m_bottomLevelAS = bottomLevelBuffers.pResult;*/
+    m_Fence.Sync(m_pQueue.Get());
 }
 
 ComPtr<ID3D12RootSignature> SampleApp::CreateRayGenSignature() {
@@ -1134,10 +1199,28 @@ ComPtr<ID3D12RootSignature> SampleApp::CreateHitSignature() {
     rsc.AddHeapRangesParameter({ {
         2/*t2*/,1,0,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1/*2nd slot of the heap*/
     } });
+    /* 
+    {
+        2, // register番号（t2）→ HLSLのregister(t2)に対応
+        1, // ディスクリプタ数（この範囲で何個バインドするか。ここでは1個）
+        0, // register space（通常は0。HLSLのregister(t2, spaceX)のspaceXに対応）
+        D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // リソースの型（SRV＝シェーダーリソースビュー）
+        1  // ヒープ内のスロット番号（この範囲をヒープの何番目に割り当てるか。ここでは2番目＝インデックス1）
+    }
+    */
+    return rsc.Generate(m_pDevice.Get(), true);
+}
+
+ComPtr<ID3D12RootSignature> SampleApp::CreateHitSignature_() {
+    nv_helpers_dx12::RootSignatureGenerator rsc;
+    rsc.AddHeapRangesParameter({ {
+        0/*t0*/,1,0,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1/*2nd slot of the heap*/
+    } });
     /*各インスタンスごとに違うデータ（ここでは頂点カラー）をレイトレーシングのシェーダに渡したいので、
     共有ヒープ上の1つのバッファを指すのではなく、SBTから「root parameter（GPU仮想アドレス）」として直接渡す方式を使う。*/
     return rsc.Generate(m_pDevice.Get(), true);
 }
+
 
 ComPtr<ID3D12RootSignature> SampleApp::CreateMissSignature() {
     nv_helpers_dx12::RootSignatureGenerator rsc;
@@ -1162,26 +1245,28 @@ void SampleApp::CreateRaytracingPipeline() {
     //m_librariesにLibraryをemplace_backしている。
     pipeline.AddLibrary(m_rayGenLibrary.Get(), { L"RayGen" });
     pipeline.AddLibrary(m_missLibrary.Get(), { L"Miss" });
-    pipeline.AddLibrary(m_hitLibrary.Get(), { L"ClosestHit", L"PlaneClosestHit" });
+    pipeline.AddLibrary(m_hitLibrary.Get(), { /*L"ClosestHit",*/ L"PlaneClosestHit" });
     pipeline.AddLibrary(m_shadowLibrary.Get(), { L"ShadowClosestHit", L"ShadowMiss" });
 
     m_rayGenSignature = CreateRayGenSignature();
     m_missSignature = CreateMissSignature();
-    m_hitSignature = CreateHitSignature();
+    //m_hitSignature = CreateHitSignature();
+    m_hitSignature = CreateHitSignature_();
     m_shadowSignature = CreateHitSignature();
 
-    pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
+    //HitGroupを作成（グループ名、関数名）
+    //pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
     pipeline.AddHitGroup(L"PlaneHitGroup", L"PlaneClosestHit");
     pipeline.AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit");
 
-    //エクスポート名（関数名：右項）内で、ルートシグニチャ（左項）を利用できるようにする。
+    //ルートシグニチャ（左項）をエクスポート名（関数名：右項）内で、利用できるようにする。
     pipeline.AddRootSignatureAssociation(m_rayGenSignature.Get(), { L"RayGen" });
     //pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { L"Miss" }); //後の行で上書きされるため、コメントアウト
     //pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { L"HitGroup" }); //後の行で上書きされるため、コメントアウト
 
     pipeline.AddRootSignatureAssociation(m_shadowSignature.Get(), { L"ShadowHitGroup" });
     pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { L"Miss", L"ShadowMiss" });
-    pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { L"HitGroup", L"PlaneHitGroup" });
+    pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { /*L"HitGroup",*/L"PlaneHitGroup" });
 
     pipeline.SetMaxPayloadSize(4 * sizeof(float)); // RGB + distance
     pipeline.SetMaxAttributeSize(2 * sizeof(float)); // barycentric coordinates
@@ -1222,16 +1307,8 @@ void SampleApp::CreateRaytracingOutputBuffer() {
 void SampleApp::CreateShaderResourceHeap() {
 
     //3つ分のスロット（場所）を持つヒープが作られます。描画結果、AS構造、
-    /*m_srvUavHeap = nv_helpers_dx12::CreateDescriptorHeap(
-        m_pDevice.Get(), 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);*/
-        // ヘルパーを使わず直接作成する
-    D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-    heapDesc.NumDescriptors = 3;
-    heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // 明示的にフラグを立てる
-    heapDesc.NodeMask = 0;
-
-    ThrowIfFailed(m_pDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_srvUavHeap)));
+    m_srvUavHeap = nv_helpers_dx12::CreateDescriptorHeap(
+        m_pDevice.Get(), 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_srvUavHeap->GetCPUDescriptorHandleForHeapStart();
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
@@ -1280,32 +1357,9 @@ void SampleApp::CreateShaderBindingTable() {
     auto heapPointer = reinterpret_cast<UINT64*>(srvUavHeapHandle.ptr);
     // The ray generation only uses heap data
     m_sbtHelper.AddRayGenerationProgram(L"RayGen", { heapPointer });
-    // The miss and hit shaders do not access any external resources: instead they
-    // communicate their results through the ray payload
     m_sbtHelper.AddMissProgram(L"Miss", {});
-    // #DXR Extra - Another ray type
     m_sbtHelper.AddMissProgram(L"ShadowMiss", {});
-
-
-    //###############################################
-    //　いくつか修正が必要だ
-    //###############################################
-    //{
-    //    m_sbtHelper.AddHitGroup(
-    //        L"HitGroup",
-    //        { (void*)(m_mengerVB->GetGPUVirtualAddress()),
-    //         (void*)(m_mengerIB->GetGPUVirtualAddress()),
-    //         (void*)(m_perInstanceConstantBuffers[0]->GetGPUVirtualAddress()) });
-    //    // #DXR Extra - Another ray type
-    //    m_sbtHelper.AddHitGroup(L"ShadowHitGroup", {});
-    //}
-    // 
-    // The plane also uses a constant buffer for its vertex colors
-    // #DXR Extra: Per-Instance Data
-    // Adding the plane
-
     m_sbtHelper.AddHitGroup(L"PlaneHitGroup", { heapPointer });
-    // #DXR Extra - Another ray type
     m_sbtHelper.AddHitGroup(L"ShadowHitGroup", {});
 
     uint32_t sbtSize = m_sbtHelper.ComputeSBTSize();
@@ -1316,16 +1370,6 @@ void SampleApp::CreateShaderBindingTable() {
     if (!m_sbtStorage) {
         throw std::logic_error("Could not allocate the shader biding table.");
     }
-
-    //「シェーダーバインディングテーブル（SBT）」の内容をGPU用バッファ（sbtBuffer：m_sbtStorage.Get()）に書き込む処理
-    //マッピングを用いて、書き込みを行う。
-    //　CopyShaderData を使って、
-    //-レイ生成シェーダー（m_rayGen）
-    //- ミスシェーダー（m_miss）
-    //- ヒットグループ（m_hitGroup）
-    //の順に、
-    //「シェーダーID（識別子）」＋「リソースポインタやルート定数」をSBTバッファに順番に書き込みます。
-    //SBTのエントリ：「どのシェーダーを使うか」と「そのシェーダーに渡すリソースや定数は何か」をGPUに伝えるための情報セット
 
     m_sbtHelper.Generate(m_sbtStorage.Get(), m_rtStateObjectProps.Get());
 }
@@ -1468,8 +1512,15 @@ void SampleApp::CreatePlaneVB() {
         {{01.5f, -.8f, -1.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}  // 4
     };
 
+    //Vertex planeVertices[] = {
+    //    {{-150.f, -80.0f, 150.f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 0
+    //    {{-150.f, -80.0f, -150.f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 1
+    //    {{150.f, -80.0f, 150.f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 2
+    //    {{150.f, -80.0f, 150.f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 2
+    //    {{-150.f, -80.0f, -150.f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 1
+    //    {{150.f, -80.0f, -150.f}, {1.0f, 1.0f, 1.0f, 1.0f}}  // 4
+    //};
     const UINT planeBufferSize = sizeof(planeVertices);
-    std::cout << "planeBufferSize = " << planeBufferSize << std::endl;
 
     // Note: using upload heaps to transfer static data like vert buffers is not
     // recommended. Every time the GPU needs it, the upload heap will be
@@ -1494,17 +1545,12 @@ void SampleApp::CreatePlaneVB() {
     memcpy(pVertexDataBegin, planeVertices, sizeof(planeVertices));
     m_planeBuffer->Unmap(0, nullptr);
 
-    if (!m_planeBuffer) {
-        std::cout << "m_planeBuffer = nullptr" << std::endl;
-    }
-    else {
-        std::cout << "m_planeBuffer != nullptr" << std::endl;
-    }
-
     // Initialize the vertex buffer view.
     m_planeBufferView.BufferLocation = m_planeBuffer->GetGPUVirtualAddress();
     m_planeBufferView.StrideInBytes = sizeof(Vertex);
     m_planeBufferView.SizeInBytes = planeBufferSize;
+
+    
 }
 
 void SampleApp::CreateGlobalConstantBuffer() {
